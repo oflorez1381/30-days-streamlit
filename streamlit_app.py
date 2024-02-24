@@ -1,269 +1,428 @@
-import datetime
-import re
-from collections import defaultdict, namedtuple
+"""
+Streamlit Cheat Sheet
+
+App to summarise streamlit docs v1.25.0
+
+There is also an accompanying png and pdf version
+
+https://github.com/daniellewisDL/streamlit-cheat-sheet
+
+v1.25.0
+20 August 2023
+
+Author:
+    @daniellewisDL : https://github.com/daniellewisDL
+
+Contributors:
+    @arnaudmiribel : https://github.com/arnaudmiribel
+    @akrolsmir : https://github.com/akrolsmir
+    @nathancarter : https://github.com/nathancarter
+
+"""
 
 import streamlit as st
-from notion_client import Client
+from pathlib import Path
+import base64
 
-st.set_page_config("Roadmap", "https://streamlit.io/favicon.svg")
-TTL = 24 * 60 * 60
+# Initial page config
 
-Project = namedtuple(
-    "Project",
-    [
-        "id",
-        "title",
-        "icon",
-        "public_description",
-        "stage",
-        "quarter",
-    ],
+st.set_page_config(
+     page_title='Streamlit cheat sheet',
+     layout="wide",
+     initial_sidebar_state="expanded",
 )
 
+def main():
+    cs_sidebar()
+    cs_body()
 
-@st.cache_data(ttl=TTL, show_spinner="Fetching roadmap...")
-def _get_raw_roadmap():
-    notion = Client(auth=st.secrets.notion.token)
-    return notion.databases.query(
-        database_id=st.secrets.notion.projects_database_id,
-        filter={
-            "property": "Show on public Streamlit roadmap",
-            "checkbox": {"equals": True},
-        },
-    )
+    return None
 
+# Thanks to streamlitopedia for the following code snippet
 
-@st.cache_data(ttl=TTL, show_spinner="Fetching roadmap...")
-def _get_roadmap(results):
-    roadmap = defaultdict(list)
+def img_to_bytes(img_path):
+    img_bytes = Path(img_path).read_bytes()
+    encoded = base64.b64encode(img_bytes).decode()
+    return encoded
 
-    for result in results:
-        props = result["properties"]
+# sidebar
 
-        title = _get_plain_text(props["Name"]["title"])
-        # Manually remove "(parent project)" and "(release)" and "(experimental release)" from titles.
-        # TODO: Could extend this to remove everything in brackets. 
-        title = title.replace("(parent project)", "")
-        title = title.replace("(release)", "")
-        title = title.replace("(experimental release)", "")
-        title = title.replace("(PrPr)", "")
-        title = title.replace("(PuPr)", "")
-        title = title.replace("(GA)", "")
-        title = title.replace(" - FKA st.database", "")
-        if "icon" in result and result["icon"]["type"] == "emoji":
-            icon = result["icon"]["emoji"]
-        else:
-            icon = "🏳️"
-        public_description = _get_plain_text(props["Public description"]["rich_text"])
+def cs_sidebar():
 
-        if "Stage" in props:
-            stage = props["Stage"]["select"]["name"]
-        else:
-            stage = ""
+    st.sidebar.markdown('''[<img src='data:image/png;base64,{}' class='img-fluid' width=32 height=32>](https://streamlit.io/)'''.format(img_to_bytes("logomark_website.png")), unsafe_allow_html=True)
+    st.sidebar.header('Streamlit cheat sheet')
 
-        if (
-            "Quarter" in props
-            and props["Quarter"]["select"] is not None
-        ):
-            quarter = props["Quarter"]["select"]["name"]
-        else:
-            quarter = "Future"
+    st.sidebar.markdown('''
+<small>Summary of the [docs](https://docs.streamlit.io/), as of [Streamlit v1.25.0](https://www.streamlit.io/).</small>
+    ''', unsafe_allow_html=True)
 
-        p = Project(
-            id=result["id"],
-            title=title,
-            icon=icon,
-            public_description=public_description,
-            stage=stage,
-            quarter=quarter,
-        )
-        roadmap[quarter].append(p)
+    st.sidebar.markdown('__Install and import__')
 
-    return roadmap
+    st.sidebar.code('$ pip install streamlit')
 
+    st.sidebar.code('''
+# Import convention
+>>> import streamlit as st
+''')
 
-def _get_current_quarter_label():
-    now = datetime.datetime.now()
+    st.sidebar.markdown('__Add widgets to sidebar__')
+    st.sidebar.code('''
+# Just add it after st.sidebar:
+>>> a = st.sidebar.radio(\'Choose:\',[1,2])
+    ''')
 
-    # Note that we are using Snowflake fiscal quarters, i.e. Q1 starts in February.
-    if now.month == 1:
-        quarter_num = 4
-        months = f"Nov {now.year - 1} - Jan {now.year}"
-    if now.month >= 2 and now.month <= 4:
-        quarter_num = 1
-        months = f"Feb - Apr {now.year}"
-    elif now.month >= 5 and now.month <= 7:
-        quarter_num = 2
-        months = f"May - Jul {now.year}"
-    elif now.month >= 8 and now.month <= 10:
-        quarter_num = 3
-        months = f"Aug - Oct {now.year}"
-    elif now.month >= 11 and now.month <= 12:
-        quarter_num = 4
-        months = f"Nov {now.year} - Jan {now.year + 1}"
+    st.sidebar.markdown('__Magic commands__')
+    st.sidebar.code('''
+'_This_ is some __Markdown__'
+a=3
+'dataframe:', data
+''')
 
-    if now.month == 1:
-        fiscal_year = str(now.year)[2:]
-    else:
-        fiscal_year = str(now.year + 1)[2:]
+    st.sidebar.markdown('__Command line__')
+    st.sidebar.code('''
+$ streamlit --help
+$ streamlit run your_script.py
+$ streamlit hello
+$ streamlit config show
+$ streamlit cache clear
+$ streamlit docs
+$ streamlit --version
+    ''')
 
-    return f"Q{quarter_num}/FY{fiscal_year} ({months})"
+    st.sidebar.markdown('__Pre-release features__')
+    st.sidebar.code('''
+pip uninstall streamlit
+pip install streamlit-nightly --upgrade
+    ''')
+    st.sidebar.markdown('<small>Learn more about [experimental features](https://docs.streamlit.io/library/advanced-features/prerelease#beta-and-experimental-features)</small>', unsafe_allow_html=True)
 
+    st.sidebar.markdown('''<hr>''', unsafe_allow_html=True)
+    st.sidebar.markdown('''<small>[Cheat sheet v1.25.0](https://github.com/daniellewisDL/streamlit-cheat-sheet)  | Aug 2023 | [Daniel Lewis](https://daniellewisdl.github.io/)</small>''', unsafe_allow_html=True)
 
-QUARTER_SORT = {
-    "Q2/FY23 (May - Jul 2022)": 0,
-    "Q3/FY23 (Aug - Oct 2022)": 1,
-    "Q4/FY23 (Nov 2022 - Jan 2023)": 2,
-    "Q1/FY24 (Feb - Apr 2023)": 3,
-    "Q2/FY24 (May - Jul 2023)": 4,
-    "Q3/FY24 (Aug - Oct 2023)": 5,
-    "Q4/FY24 (Nov 2023 - Jan 2024)": 6,
-    "Q1/FY25 (Feb - Apr 2024)": 7,
-    "Q2/FY25 (May - Jul 2024)": 8,
-    "Q3/FY25 (Aug - Oct 2024)": 9,
-    "Q4/FY25 (Nov 2024 - Jan 2025)": 10,
-    "Future": 11,
-}
+    return None
 
-# Doing a defaultdict here because if there's a new stage, it's ok to just silently plug
-# it at the bottom. For quarters above, I'd want the app to show an exception if
-# something goes wrong (rather than failing silently), so keeping it as a normal dict.
-STAGE_SORT = defaultdict(
-    lambda: -1,
-    {
-        "Needs triage": 0,
-        "Backlog": 1,
-        "Prioritized": 2,
-        "⏳ Paused / Waiting": 3,
-        "👟 Scoping / speccing": 4,
-        "👷 In tech design": 5,
-        "👷 Ready for dev / work": 6,
-        "👷 In development / drafting": 7,
-        "👟 👷 In testing / review": 8,
-        "🏁 Ready for launch / publish": 9,
-        "✅ Done / launched / published": 10,
-    },
-)
+##########################
+# Main body of cheat sheet
+##########################
 
-STAGE_COLORS = {
-    "Needs triage": "rgba(206, 205, 202, 0.5)",
-    "Backlog": "rgba(206, 205, 202, 0.5)",
-    "Prioritized": "rgba(206, 205, 202, 0.5)",
-    "👟 Scoping / speccing": "rgba(221, 0, 129, 0.2)",
-    "👷 In tech design": "rgba(221, 0, 129, 0.2)",
-    "👷 Ready for dev / work": "rgba(221, 0, 129, 0.2)",
-    "👷 In development / drafting": "rgba(0, 135, 107, 0.2)",
-    "👟 👷 In testing / review": "rgba(0, 120, 223, 0.2)",
-    "🏁 Ready for launch / publish": "rgba(103, 36, 222, 0.2)",
-    "✅ Done / launched / published": "rgba(140, 46, 0, 0.2)",
-}
-STAGE_SHORT_NAMES = {
-    "Needs triage": "Needs triage",
-    "Backlog": "Backlog",
-    "Prioritized": "Prioritized",
-    "👟 Scoping / speccing": "👟 Planning",
-    "👷 In tech design": "👟 Planning",
-    "👷 Ready for dev / work": "👟 Planning",
-    "👷 In development / drafting": "👷 Development",
-    "👟 👷 In testing / review": "🧪 Testing",
-    "🏁 Ready for launch / publish": "🏁 Ready for launch",
-    "✅ Done / launched / published": "✅ Launched",
-}
+def cs_body():
+
+    col1, col2, col3 = st.columns(3)
+
+    #######################################
+    # COLUMN 1
+    #######################################
+    
+    # Display text
+
+    col1.subheader('Display text')
+    col1.code('''
+st.text('Fixed width text')
+st.markdown('_Markdown_') # see #*
+st.caption('Balloons. Hundreds of them...')
+st.latex(r\'\'\' e^{i\pi} + 1 = 0 \'\'\')
+st.write('Most objects') # df, err, func, keras!
+st.write(['st', 'is <', 3]) # see *
+st.title('My title')
+st.header('My header')
+st.subheader('My sub')
+st.code('for i in range(8): foo()')
+
+# * optional kwarg unsafe_allow_html = True
+
+    ''')
+
+    # Display data
+
+    col1.subheader('Display data')
+    col1.code('''
+st.dataframe(my_dataframe)
+st.table(data.iloc[0:10])
+st.json({'foo':'bar','fu':'ba'})
+st.metric(label="Temp", value="273 K", delta="1.2 K")
+    ''')
 
 
-def _get_stage_tag(stage):
-    color = STAGE_COLORS.get(stage, "rgba(206, 205, 202, 0.5)")
-    short_name = STAGE_SHORT_NAMES.get(stage, stage)
-    return (
-        f'<span style="background-color: {color}; padding: 1px 6px; '
-        "margin: 0 5px; display: inline; vertical-align: middle; "
-        f"border-radius: 0.25rem; font-size: 0.75rem; font-weight: 400; "
-        f'white-space: nowrap">{short_name}'
-        "</span>"
-    )
+    # Display media
+
+    col1.subheader('Display media')
+    col1.code('''
+st.image('./header.png')
+st.audio(data)
+st.video(data)
+    ''')
+
+    # Columns
+
+    col1.subheader('Columns')
+    col1.code('''
+col1, col2 = st.columns(2)
+col1.write('Column 1')
+col2.write('Column 2')
+
+# Three columns with different widths
+col1, col2, col3 = st.columns([3,1,1])
+# col1 is wider
+              
+# Using 'with' notation:
+>>> with col1:
+>>>     st.write('This is column 1')
+              
+''')
+
+    # Tabs
+    
+    col1.subheader('Tabs')
+    col1.code('''
+# Insert containers separated into tabs:
+>>> tab1, tab2 = st.tabs(["Tab 1", "Tab2"])
+>>> tab1.write("this is tab 1")
+>>> tab2.write("this is tab 2")
+
+# You can also use "with" notation:
+>>> with tab1:
+>>>   st.radio('Select one:', [1, 2])
+''')
+
+    # Control flow
+
+    col1.subheader('Control flow')
+    col1.code('''
+# Stop execution immediately:
+st.stop()
+# Rerun script immediately:
+st.experimental_rerun()
+
+# Group multiple widgets:
+>>> with st.form(key='my_form'):
+>>>   username = st.text_input('Username')
+>>>   password = st.text_input('Password')
+>>>   st.form_submit_button('Login')
+''')
+    
+    # Personalize apps for users
+
+    col1.subheader('Personalize apps for users')
+    col1.code('''
+# Show different content based on the user's email address.
+>>> if st.user.email == 'jane@email.com':
+>>>    display_jane_content()
+>>> elif st.user.email == 'adam@foocorp.io':
+>>>    display_adam_content()
+>>> else:
+>>>    st.write("Please contact us to get access!")
+''')
 
 
-def _reverse_sort_by_stage(projects):
-    return sorted(projects, key=lambda x: STAGE_SORT[x.stage], reverse=True)
+    #######################################
+    # COLUMN 2
+    #######################################
+
+    # Display interactive widgets
+
+    col2.subheader('Display interactive widgets')
+    col2.code('''
+st.button('Hit me')
+st.data_editor('Edit data', data)
+st.checkbox('Check me out')
+st.radio('Pick one:', ['nose','ear'])
+st.selectbox('Select', [1,2,3])
+st.multiselect('Multiselect', [1,2,3])
+st.slider('Slide me', min_value=0, max_value=10)
+st.select_slider('Slide to select', options=[1,'2'])
+st.text_input('Enter some text')
+st.number_input('Enter a number')
+st.text_area('Area for textual entry')
+st.date_input('Date input')
+st.time_input('Time entry')
+st.file_uploader('File uploader')
+st.download_button('On the dl', data)
+st.camera_input("一二三,茄子!")
+st.color_picker('Pick a color')
+    ''')
+
+    col2.code('''
+# Use widgets\' returned values in variables
+>>> for i in range(int(st.number_input('Num:'))): foo()
+>>> if st.sidebar.selectbox('I:',['f']) == 'f': b()
+>>> my_slider_val = st.slider('Quinn Mallory', 1, 88)
+>>> st.write(slider_val)
+    ''')
+    col2.code('''
+# Disable widgets to remove interactivity:
+>>> st.slider('Pick a number', 0, 100, disabled=True)
+              ''')
+
+    # Build chat-based apps
+
+    col2.subheader('Build chat-based apps')
+    col2.code('''
+# Insert a chat message container.
+>>> with st.chat_message("user"):
+>>>    st.write("Hello 👋")
+>>>    st.line_chart(np.random.randn(30, 3))
+
+# Display a chat input widget.
+>>> st.chat_input("Say something")          
+''')
+
+    col2.markdown('<small>Learn how to [build chat-based apps](https://docs.streamlit.io/knowledge-base/tutorials/build-conversational-apps)</small>', unsafe_allow_html=True)
+
+    # Mutate data
+
+    col2.subheader('Mutate data')
+    col2.code('''
+# Add rows to a dataframe after
+# showing it.
+>>> element = st.dataframe(df1)
+>>> element.add_rows(df2)
+
+# Add rows to a chart after
+# showing it.
+>>> element = st.line_chart(df1)
+>>> element.add_rows(df2)
+''')
+
+    # Display code
+
+    col2.subheader('Display code')
+    col2.code('''
+st.echo()
+>>> with st.echo():
+>>>     st.write('Code will be executed and printed')
+    ''')
+
+    # Placeholders, help, and options
+
+    col2.subheader('Placeholders, help, and options')
+    col2.code('''
+# Replace any single element.
+>>> element = st.empty()
+>>> element.line_chart(...)
+>>> element.text_input(...)  # Replaces previous.
+
+# Insert out of order.
+>>> elements = st.container()
+>>> elements.line_chart(...)
+>>> st.write("Hello")
+>>> elements.text_input(...)  # Appears above "Hello".
+
+st.help(pandas.DataFrame)
+st.get_option(key)
+st.set_option(key, value)
+st.set_page_config(layout='wide')
+st.experimental_show(objects)
+st.experimental_get_query_params()
+st.experimental_set_query_params(**params)
+    ''')
+
+    #######################################
+    # COLUMN 3
+    #######################################
 
 
-def _get_plain_text(rich_text_property):
-    return "".join(part["plain_text"] for part in rich_text_property)
+    # Connect to data sources
+    
+    col3.subheader('Connect to data sources')
+
+    col3.code('''
+st.experimental_connection('pets_db', type='sql')
+conn = st.experimental_connection('sql')
+conn = st.experimental_connection('snowpark')
+
+>>> class MyConnection(ExperimentalBaseConnection[myconn.MyConnection]):
+>>>    def _connect(self, **kwargs) -> MyConnection:
+>>>        return myconn.connect(**self._secrets, **kwargs)
+>>>    def query(self, query):
+>>>       return self._instance.query(query)
+              ''')
 
 
-SPACE = "&nbsp;"
+    # Optimize performance
+
+    col3.subheader('Optimize performance')
+    col3.write('Cache data objects')
+    col3.code('''
+# E.g. Dataframe computation, storing downloaded data, etc.
+>>> @st.cache_data
+... def foo(bar):
+...   # Do something expensive and return data
+...   return data
+# Executes foo
+>>> d1 = foo(ref1)
+# Does not execute foo
+# Returns cached item by value, d1 == d2
+>>> d2 = foo(ref1)
+# Different arg, so function foo executes
+>>> d3 = foo(ref2)
+# Clear all cached entries for this function
+>>> foo.clear()
+# Clear values from *all* in-memory or on-disk cached functions
+>>> st.cache_data.clear()
+    ''')
+    col3.write('Cache global resources')
+    col3.code('''
+# E.g. TensorFlow session, database connection, etc.
+>>> @st.cache_resource
+... def foo(bar):
+...   # Create and return a non-data object
+...   return session
+# Executes foo
+>>> s1 = foo(ref1)
+# Does not execute foo
+# Returns cached item by reference, s1 == s2
+>>> s2 = foo(ref1)
+# Different arg, so function foo executes
+>>> s3 = foo(ref2)
+# Clear all cached entries for this function
+>>> foo.clear()
+# Clear all global resources from cache
+>>> st.cache_resource.clear()
+    ''')
+    col3.write('Deprecated caching')
+    col3.code('''
+>>> @st.cache
+... def foo(bar):
+...   # Do something expensive in here...
+...   return data
+>>> # Executes foo
+>>> d1 = foo(ref1)
+>>> # Does not execute foo
+>>> # Returns cached item by reference, d1 == d2
+>>> d2 = foo(ref1)
+>>> # Different arg, so function foo executes
+>>> d3 = foo(ref2)
+    ''')
 
 
-def _draw_groups(roadmap_by_group, groups):
+    # Display progress and status
 
-    for group in groups:
+    col3.subheader('Display progress and status')
+    col3.code('''
+# Show a spinner during a process
+>>> with st.spinner(text='In progress'):
+>>>   time.sleep(3)
+>>>   st.success('Done')
 
-        projects = roadmap_by_group[group]
-        cleaned_group = (
-            re.sub(r"Q./FY..", "", group)
-            .replace("(", "")
-            .replace(")", "")
-            .replace("-", "–")
-        )
-        st.write("")
-        st.header(cleaned_group)
+# Show and update progress bar
+>>> bar = st.progress(50)
+>>> time.sleep(3)
+>>> bar.progress(100)
 
-        for p in _reverse_sort_by_stage(projects):
-
-            if STAGE_SORT[p.stage] >= 4:
-                stage = _get_stage_tag(p.stage)
-            else:
-                stage = ""
-
-            description = ""
-
-            if p.public_description:
-                description = f"<br /><small style='color: #808495'>{p.public_description}</small>"
-
-            a, b = st.columns([0.03, 0.97])
-            a.markdown(p.icon)
-            b.markdown(f"<strong>{p.title}</strong> {stage}{description}", unsafe_allow_html=True)
+st.balloons()
+st.snow()
+st.toast('Mr Stay-Puft')
+st.error('Error message')
+st.warning('Warning message')
+st.info('Info message')
+st.success('Success message')
+st.exception(e)
+    ''')
 
 
+    return None
 
-st.image("https://streamlit.io/images/brand/streamlit-mark-color.png", width=78)
+# Run main()
 
-st.write(
-    """
-    # Streamlit roadmap
-
-    Welcome to our roadmap! 👋 This app shows some projects we're working on or have
-    planned for the future. Plus, there's always more going on behind the scenes — we
-    sometimes like to surprise you ✨
-    """
-)
-
-st.info(
-    """
-    Need a feature that's not on here?
-    [Let us know by opening a GitHub issue!](https://github.com/streamlit/streamlit/issues)
-    """,
-    icon="👾",
-)
-
-st.success(
-    """
-    Read [the blog post on Streamlit's roadmap](https://blog.streamlit.io/the-next-frontier-for-streamlit/)
-    to understand our broader vision.
-    """,
-    icon="🗺",
-)
-
-results = _get_raw_roadmap()["results"]
-roadmap_by_group = _get_roadmap(results)  # , group_by)
-
-sorted_groups = sorted(roadmap_by_group.keys(), key=lambda x: QUARTER_SORT[x])
-current_quarter_index = QUARTER_SORT[_get_current_quarter_label()]
-past_groups = filter(lambda x: QUARTER_SORT[x] < current_quarter_index, sorted_groups)
-future_groups = filter(
-    lambda x: QUARTER_SORT[x] >= current_quarter_index, sorted_groups
-)
-
-with st.expander("Show past quarters"):
-    _draw_groups(roadmap_by_group, past_groups)
-_draw_groups(roadmap_by_group, future_groups)
+if __name__ == '__main__':
+    main()
